@@ -48,7 +48,7 @@ Props) => {
         <section className="md:space-y-10">
           <Row title="Trending Now" movies={trendingNow} />
           <Row title="Top Rated" movies={topRated} />
-          <Row title="Sciencefiction" movies={scienceFictionMovies} />
+          <Row title="Science Fiction" movies={scienceFictionMovies} />
           <Row title="Action Thrillers" movies={actionMovies} />
           {/* My List */}
           {/* {list.length > 0 && <Row title="My List" movies={list} />} */}
