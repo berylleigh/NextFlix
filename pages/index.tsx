@@ -1,8 +1,12 @@
 import Head from 'next/head'
 import Image from 'next/image'
+import { useRecoilValue } from 'recoil'
+import { modalState } from '../atoms/modalAtom'
 import Banner from '../components/Banner'
 import Header from '../components/Header'
+import Modal from '../components/Modal'
 import Row from '../components/Row'
+import useAuth from '../hooks/useAuth'
 import { Movie } from '../typings'
 import requests from '../utils/requests'
 
@@ -33,6 +37,12 @@ const Home = ({
 
 Props) => {
   // console.log(scienceFictionMovies)
+
+  const { loading } = useAuth()
+  const showModal = useRecoilValue(modalState)
+
+  if (loading) return 'Loading'
+
   return (
     // <div className="flex min-h-screen flex-col items-center justify-center py-2">
     <div className="relative h-screen bg-gradient-to-b lg:h-[140vh]">
@@ -50,16 +60,16 @@ Props) => {
           <Row title="Top Rated" movies={topRated} />
           <Row title="Science Fiction" movies={scienceFictionMovies} />
           <Row title="Action Thrillers" movies={actionMovies} />
-          {/* My List */}
-          {/* {list.length > 0 && <Row title="My List" movies={list} />} */}
 
+          {/* My List Component*/}
+          {/* {list.length > 0 && <Row title="My List" movies={list} />} */}
           <Row title="Comedies" movies={comedyMovies} />
           <Row title="Scary Movies" movies={horrorMovies} />
           <Row title="Romance Movies" movies={romanceMovies} />
           <Row title="Documentaries" movies={documentaries} />
         </section>
       </main>
-      {/* Modal */}
+      {showModal && <Modal />}
     </div>
   )
 }
