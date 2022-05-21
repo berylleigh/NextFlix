@@ -1,28 +1,52 @@
+import { useEffect, useState } from 'react'
+import { useRecoilState } from 'recoil'
+import { modalState, movieState } from '../atoms/modalAtom'
+import ReactPlayer from 'react-player/lazy'
+import { FaPlay } from 'react-icons/fa'
 import {
+  CheckIcon,
+  PlusIcon,
   ThumbUpIcon,
   VolumeOffIcon,
   VolumeUpIcon,
   XIcon,
 } from '@heroicons/react/outline'
-import PlusIcon from '@heroicons/react/solid/PlusIcon'
+import { Element, Genre, Movie } from '../typings'
 import MuiModal from '@mui/material/Modal'
-import { useEffect, useState } from 'react'
-import { FaPlay } from 'react-icons/fa'
-import ReactPlayer from 'react-player'
-// import ReactPlayer from 'react-player/lazy'
-import { useRecoilState, useRecoilValue } from 'recoil'
-import { modalState, movieState } from '../atoms/modalAtom'
-import { Element, Genre } from '../typings'
+import {
+  collection,
+  deleteDoc,
+  doc,
+  DocumentData,
+  onSnapshot,
+  setDoc,
+} from 'firebase/firestore'
+import { db } from '../firebase'
+import useAuth from '../hooks/useAuth'
+import toast, { Toaster } from 'react-hot-toast'
 
 function Modal() {
-  const [showModal, setShowModal] = useRecoilState(modalState)
   const [movie, setMovie] = useRecoilState(movieState)
-  const [trailer, setTrailer] = useState()
-  const [genres, setGenres] = useState<Genre[]>()
+  const [trailer, setTrailer] = useState('')
+  const [showModal, setShowModal] = useRecoilState(modalState)
   const [muted, setMuted] = useState(false)
+  const [genres, setGenres] = useState<Genre[]>([])
+  const [addedToList, setAddedToList] = useState(false)
+  const { user } = useAuth()
+  const [movies, setMovies] = useState<DocumentData[] | Movie[]>([])
+
+  const toastStyle = {
+    background: 'white',
+    color: 'black',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    padding: '15px',
+    borderRadius: '9999px',
+    maxWidth: '1000px',
+  }
 
   useEffect(() => {
-    // if (!movie) return
+    if (!movie) return
 
     async function fetchMovie() {
       const data = await fetch(
@@ -48,6 +72,58 @@ function Modal() {
 
   const handleClose = () => {
     setShowModal(false)
+    setMovie(null)
+    toast.dismiss()
+  }
+
+  // Find all the movies in the user's list
+  useEffect(() => {
+    if (user) {
+      return onSnapshot(
+        collection(db, 'customers', user.uid, 'myList'),
+        (snapshot) => setMovies(snapshot.docs)
+      )
+    }
+  }, [db, movie?.id])
+
+  // Check if the movie is already in the user's list
+  useEffect(
+    () =>
+      setAddedToList(
+        movies.findIndex((result) => result.data().id === movie?.id) !== -1
+      ),
+    [movies]
+  )
+
+  const handleList = async () => {
+    if (addedToList) {
+      await deleteDoc(
+        doc(db, 'customers', user!.uid, 'myList', movie?.id.toString()!)
+      )
+
+      toast(
+        `${movie?.title || movie?.original_name} has been removed from My List`,
+        {
+          duration: 8000,
+          style: toastStyle,
+        }
+      )
+    } else {
+      await setDoc(
+        doc(db, 'customers', user!.uid, 'myList', movie?.id.toString()!),
+        {
+          ...movie,
+        }
+      )
+
+      toast(
+        `${movie?.title || movie?.original_name} has been added to My List.`,
+        {
+          duration: 8000,
+          style: toastStyle,
+        }
+      )
+    }
   }
 
   console.log(trailer)
@@ -60,6 +136,8 @@ function Modal() {
       overflow-hidden overflow-y-scroll rounded-md scrollbar-hide"
     >
       <>
+        <Toaster position="bottom-center" />
+
         <button
           onClick={handleClose}
           aria-label="labeldiv"
@@ -92,8 +170,16 @@ function Modal() {
                 Play
               </button>
 
-              <button className="modalButton" title="Add to our list ">
-                <PlusIcon className="h-8 w-8" />
+              <button
+                className="modalButton"
+                title="Add to our list "
+                onClick={handleList}
+              >
+                {addedToList ? (
+                  <CheckIcon className="h-7 w-7" />
+                ) : (
+                  <PlusIcon className="h-8 w-8" />
+                )}
               </button>
 
               <button className="modalButton" title="Like ">

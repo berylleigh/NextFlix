@@ -1,14 +1,19 @@
+import { getProducts, Product } from '@stripe/firestore-stripe-payments'
 import Head from 'next/head'
 import Image from 'next/image'
 import { useRecoilValue } from 'recoil'
-import { modalState } from '../atoms/modalAtom'
+import { modalState, movieState } from '../atoms/modalAtom'
 import Banner from '../components/Banner'
 import Header from '../components/Header'
 import Modal from '../components/Modal'
+import Plans from '../components/Plans'
 import Row from '../components/Row'
 import useAuth from '../hooks/useAuth'
+import useSubscription from '../hooks/useSubscription'
+import payments from '../lib/stripe'
 import { Movie } from '../typings'
 import requests from '../utils/requests'
+import useList from '../hooks/useList'
 
 interface Props {
   scienceFictionMovies: Movie[]
@@ -20,7 +25,7 @@ interface Props {
   horrorMovies: Movie[]
   romanceMovies: Movie[]
   documentaries: Movie[]
-  // products: Product[]
+  products: Product[]
 }
 
 const Home = ({
@@ -33,18 +38,23 @@ const Home = ({
   romanceMovies,
   topRated,
   trendingNow,
-}: // products,
-
-Props) => {
+  products,
+}: Props) => {
   // console.log(scienceFictionMovies)
 
-  const { loading } = useAuth()
+  const { loading, user } = useAuth()
   const showModal = useRecoilValue(modalState)
+  const subscription = useSubscription(user)
+  const list = useList(user?.uid)
+  const movie = useRecoilValue(movieState)
 
-  if (loading) return 'Loading'
+  console.log(subscription)
+
+  if (loading || subscription === null) return 'Loading'
+
+  if (!subscription) return <Plans products={products} />
 
   return (
-    // <div className="flex min-h-screen flex-col items-center justify-center py-2">
     <div
       className={`relative h-screen bg-gradient-to-b lg:h-[140vh] 
     ${showModal && '!h-screen overflow-hidden'}`}
@@ -53,23 +63,23 @@ Props) => {
         <title>NetflixApp</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
+
       <Header />
-      {/* Header */}
       <main className="relative pl-4 pb-24 lg:space-y-10 lg:pl-10">
         <Banner scienceFictionMovies={scienceFictionMovies} />
 
         <section className="md:space-y-10">
+          {/* My List Component*/}
+          {list.length > 0 && <Row title="My List" movies={list} />}
           <Row title="Trending Now" movies={trendingNow} />
           <Row title="Top Rated" movies={topRated} />
           <Row title="Science Fiction" movies={scienceFictionMovies} />
           <Row title="Action Thrillers" movies={actionMovies} />
-
-          {/* My List Component*/}
-          {/* {list.length > 0 && <Row title="My List" movies={list} />} */}
           <Row title="Comedies" movies={comedyMovies} />
           <Row title="Scary Movies" movies={horrorMovies} />
           <Row title="Romance Movies" movies={romanceMovies} />
           <Row title="Documentaries" movies={documentaries} />
+          <Row title="Netflix Originals" movies={netflixOriginals} />
         </section>
       </main>
       {showModal && <Modal />}
@@ -80,6 +90,13 @@ Props) => {
 export default Home
 
 export const getServerSideProps = async () => {
+  const products = await getProducts(payments, {
+    includePrices: true,
+    activeOnly: true,
+  })
+    .then((res) => res)
+    .catch((error) => console.log(error.message))
+
   const [
     netflixOriginals,
     trendingNow,
@@ -112,7 +129,7 @@ export const getServerSideProps = async () => {
       romanceMovies: romanceMovies.results,
       documentaries: documentaries.results,
       scienceFictionMovies: scienceFictionMovies.results,
-      // products,
+      products,
     },
   }
 }
